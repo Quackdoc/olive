@@ -55,6 +55,9 @@ else()
 endif()
 
 set(OLIVE_DEFINITIONS -DQT_DEPRECATED_WARNINGS)
+if (WIN32)
+  list(APPEND OLIVE_DEFINITIONS -DUNICODE -D_UNICODE)
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -162,7 +165,9 @@ else()
   endif()
 endif()
 
-if (APPLE)
+if (WIN32)
+  list(APPEND OLIVE_DEFINITIONS "-DUNICODE -D_UNICODE")
+elseif (APPLE)
   list(APPEND OLIVE_LIBRARIES "-framework IOKit")
 elseif(UNIX)
   list(APPEND OLIVE_LIBRARIES Qt5::DBus)

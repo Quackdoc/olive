@@ -271,7 +271,9 @@ void ViewerDisplayWidget::mouseReleaseEvent(QMouseEvent *event)
   } else if (gizmo_click_) {
 
     // Handle gizmo
-    gizmos_->GizmoRelease();
+    MultiUndoCommand *command = new MultiUndoCommand();
+    gizmos_->GizmoRelease(command);
+    Core::instance()->undo_stack()->pushIfHasChildren(command);
     gizmo_click_ = false;
 
   } else {
@@ -391,7 +393,9 @@ void ViewerDisplayWidget::OnPaint()
         texture_to_draw = deinterlace_texture_;
       }
 
-      renderer()->BlitColorManaged(color_service(), texture_to_draw, Renderer::kAlphaNone, device_params, false,
+      renderer()->BlitColorManaged(color_service(), texture_to_draw,
+                                   Config::Current()[QStringLiteral("ReassocLinToNonLin")].toBool() ? Renderer::kAlphaAssociated : Renderer::kAlphaNone,
+                                   device_params, false,
                                    combined_matrix_flipped_, crop_matrix_);
     }
   }
