@@ -27,6 +27,7 @@
 
 #include "common/qtutils.h"
 #include "widget/slider/integerslider.h"
+#include "encoderoptions.h"
 
 namespace olive {
 
@@ -42,6 +43,13 @@ H264Section::H264Section(int default_crf, QWidget *parent) :
   layout->setMargin(0);
 
   int row = 0;
+
+  /////////
+  preset_section_ = new H264PresetSection();
+  layout->addWidget(preset_section_);
+  /////////
+  
+  row++;
 
   layout->addWidget(new QLabel(tr("Compression Method:")), row, 0);
 

@@ -22,5 +22,7 @@ set(OLIVE_SOURCES
   dialog/export/codec/h264section.cpp
   dialog/export/codec/imagesection.h
   dialog/export/codec/imagesection.cpp
+  dialog/export/codec/encoderoptions.h
+  dialog/export/codec/encoderoptions.cpp  
   PARENT_SCOPE
 )

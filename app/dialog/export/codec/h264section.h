@@ -25,6 +25,7 @@
 #include <QStackedWidget>
 
 #include "codecsection.h"
+#include "encoderoptions.h"
 #include "widget/slider/floatslider.h"
 
 namespace olive {
@@ -111,6 +112,7 @@ private:
 
   H264FileSizeSection* filesize_section_;
 
+  H264PresetSection* preset_section_;
 };
 
 class H265Section : public H264Section
