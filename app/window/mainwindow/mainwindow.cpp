@@ -341,6 +341,12 @@ void MainWindow::ProjectOpen(Project *p)
 
 void MainWindow::ProjectClose(Project *p)
 {
+  // Close project from NodeParamView
+  param_panel_->CloseContextsBelongingToProject(p);
+
+  // Close project from NodeView
+  node_panel_->CloseContextsBelongingToProject(p);
+
   // Close any nodes open in TimeBasedWidgets
   foreach (PanelWidget* panel, PanelManager::instance()->panels()) {
     TimeBasedPanel* tbp = dynamic_cast<TimeBasedPanel*>(panel);
@@ -368,9 +374,6 @@ void MainWindow::ProjectClose(Project *p)
       RemoveProjectPanel(panel);
     }
   }
-
-  // Close project from NodeView
-  node_panel_->CloseContextsBelongingToProject(p);
 }
 
 void MainWindow::SetApplicationProgressStatus(ProgressStatus status)
@@ -756,6 +759,7 @@ void MainWindow::FocusedPanelChanged(PanelWidget *panel)
     UpdateNodePanelContextFromTimelinePanel(timeline);
   } else if (ProjectPanel* project = dynamic_cast<ProjectPanel*>(panel)) {
     // Signal project panel focus
+    Q_UNUSED(project)
     UpdateTitle();
   } else if (ViewerPanelBase *viewer = dynamic_cast<ViewerPanelBase*>(panel)) {
     // Update scopes for viewer

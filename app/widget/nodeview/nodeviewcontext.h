@@ -17,6 +17,8 @@ class NodeViewContext : public QObject, public QGraphicsRectItem
 public:
   NodeViewContext(Node *context, QGraphicsItem *item = nullptr);
 
+  virtual ~NodeViewContext() override;
+
   Node *GetContext() const
   {
     return context_;
@@ -53,6 +55,9 @@ public slots:
   void ChildInputConnected(Node *output, const NodeInput& input);
 
   bool ChildInputDisconnected(Node *output, const NodeInput& input);
+
+signals:
+  void ItemAboutToBeDeleted(NodeViewItem *item);
 
 protected:
   virtual QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant &value) override;

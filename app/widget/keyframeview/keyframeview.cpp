@@ -262,7 +262,7 @@ int BinarySearchFirstKeyframeAfterOrAt(const QVector<NodeKeyframe*> &keys, const
     }
   }
 
-  return -1;
+  return keys.size();
 }
 
 void KeyframeView::drawForeground(QPainter *painter, const QRectF &rect)
@@ -290,7 +290,7 @@ void KeyframeView::drawForeground(QPainter *painter, const QRectF &rect)
     }
 
     // Find first keyframe to show with binary search
-    rational left_time = SceneToTime(rect.left() - key_sz);
+    rational left_time = GetUnadjustedKeyframeTime(keys.first(), SceneToTime(rect.left() - key_sz));
     int using_index = BinarySearchFirstKeyframeAfterOrAt(keys, left_time);
 
     rational next_key = RATIONAL_MIN;
@@ -312,7 +312,7 @@ void KeyframeView::drawForeground(QPainter *painter, const QRectF &rect)
           // Next key still won't be drawn, so we'll switch to a binary search
           i = BinarySearchFirstKeyframeAfterOrAt(keys, next_key);
 
-          if (i == -1) {
+          if (i == keys.size()) {
             break;
           }
 

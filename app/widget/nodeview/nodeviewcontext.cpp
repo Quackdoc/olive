@@ -44,6 +44,13 @@ NodeViewContext::NodeViewContext(Node *context, QGraphicsItem *item) :
   connect(context_, &Node::NodeRemovedFromContext, this, &NodeViewContext::RemoveChild, Qt::DirectConnection);
 }
 
+NodeViewContext::~NodeViewContext()
+{
+  // Delete edges before items, because the edge constructor references the items
+  qDeleteAll(edges_);
+  edges_.clear();
+}
+
 void NodeViewContext::AddChild(Node *node)
 {
   if (!context_) {
@@ -84,6 +91,12 @@ void NodeViewContext::RemoveChild(Node *node)
   }
 
   NodeViewItem *item = item_map_.take(node);
+
+  // Remove from scene before emitting signal so that any drag functions that might be happening
+  // now can be handled before the item is destroyed
+  scene()->removeItem(item);
+
+  emit ItemAboutToBeDeleted(item);
 
   // Delete edges first because the edge destructor will try to reference item (maybe that should
   // be changed...)

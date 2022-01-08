@@ -55,6 +55,8 @@ public:
     return input_checked_.value(input);
   }
 
+  void CloseContextsBelongingToProject(Project *p);
+
   Node* GetTimeTarget() const;
 
   void DeleteSelected();
@@ -110,6 +112,8 @@ private:
 
   void SortItemsInContext(NodeParamViewContext *context);
 
+  NodeParamViewContext *GetContextItemFromContext(Node *context);
+
   KeyframeView* keyframe_view_;
 
   QVector<NodeParamViewContext*> context_items_;
@@ -150,6 +154,8 @@ private slots:
   void KeyframeViewDragged(int x, int y);
 
   void UpdateElementY();
+
+  void NodeAddedToContext(Node *n);
 
 };
 
