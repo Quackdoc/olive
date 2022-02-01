@@ -122,7 +122,7 @@ public:
 
   void RestoreSplitterState(const QByteArray& state);
 
-  static void ReplaceBlocksWithGaps(const QVector<Block *> &blocks, bool remove_from_graph, MultiUndoCommand *command, bool handle_transitions = true);
+  static void ReplaceBlocksWithGaps(const QVector<Block *> &blocks, bool remove_from_graph, MultiUndoCommand *command, bool handle_transitions = true, bool handle_invalidations = true);
 
   /**
    * @brief Retrieve the QGraphicsItem at a particular scene position
@@ -230,7 +230,7 @@ public:
 
   class SetSelectionsCommand : public UndoCommand {
   public:
-    SetSelectionsCommand(TimelineWidget* timeline, const TimelineWidgetSelections& now, const TimelineWidgetSelections& old, bool process_block_changes) :
+    SetSelectionsCommand(TimelineWidget* timeline, const TimelineWidgetSelections& now, const TimelineWidgetSelections& old, bool process_block_changes = true) :
       timeline_(timeline),
       old_(old),
       now_(now),
@@ -272,15 +272,8 @@ protected:
   virtual void ConnectNodeEvent(ViewerOutput* n) override;
   virtual void DisconnectNodeEvent(ViewerOutput* n) override;
 
-  virtual void CopyNodesToClipboardInternal(QXmlStreamWriter *writer, const QVector<Node*> &nodes, void* userdata) override;
-  virtual void PasteNodesFromClipboardInternal(QXmlStreamReader *reader, XMLNodeData &xml_node_data, void* userdata) override;
-
-  struct BlockPasteData {
-    Block* block;
-    rational in;
-    Track::Type track_type;
-    int track_index;
-  };
+  virtual void CopyNodesToClipboardCallback(const QVector<Node*> &nodes, ProjectSerializer::SaveData *data, void *userdata) override;
+  virtual void PasteNodesToClipboardCallback(const QVector<Node*> &nodes, const ProjectSerializer::LoadData &load_data, void *userdata) override;
 
 private:
   QVector<Timeline::EditToInfo> GetEditToInfo(const rational &playhead_time, Timeline::MovementMode mode);

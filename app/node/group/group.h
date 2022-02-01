@@ -41,7 +41,7 @@ public:
 
   virtual void Retranslate() override;
 
-  void AddInputPassthrough(const NodeInput &input);
+  QString AddInputPassthrough(const NodeInput &input, const InputFlags &flags = InputFlags());
 
   void RemoveInputPassthrough(const NodeInput &input);
 
@@ -63,17 +63,15 @@ public:
 
   virtual QString GetInputName(const QString& id) const override;
 
+  static NodeInput ResolveInput(NodeInput input);
+  static bool GetInner(NodeInput *input);
+
 signals:
   void InputPassthroughAdded(NodeGroup *group, const NodeInput &input);
 
   void InputPassthroughRemoved(NodeGroup *group, const NodeInput &input);
 
   void OutputPassthroughChanged(NodeGroup *group, Node *output);
-
-protected:
-  virtual bool LoadCustom(QXmlStreamReader* reader, XMLNodeData& xml_node_data, uint version, const QAtomicInt* cancelled) override;
-
-  virtual void SaveCustom(QXmlStreamWriter* writer) const override;
 
 private:
   QHash<QString, NodeInput> input_passthroughs_;
