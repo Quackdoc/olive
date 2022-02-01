@@ -20,6 +20,7 @@ project(olive-editor VERSION 0.2.0 LANGUAGES CXX)
 
 option(BUILD_DOXYGEN "Build Doxygen documentation" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
+option(USE_WERROR "Error on compile warning" ON)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,7 +33,6 @@ set(CMAKE_AUTORCC ON)
 # Set compiler options
 if(MSVC)
   set(OLIVE_COMPILE_OPTIONS
-    /WX
     /wd4267
     /wd4244
     /experimental:external
@@ -41,10 +41,12 @@ if(MSVC)
     "$<$<CONFIG:RELEASE>:/O2>"
     "$<$<COMPILE_LANGUAGE:CXX>:/MP>"
   )
+  if (USE_WERROR)
+    list(APPEND OLIVE_COMPILE_OPTIONS "/WX")
+  endif()
 else()
   set(OLIVE_COMPILE_OPTIONS
     "$<$<CONFIG:RELEASE>:-O2>"
-    -Werror
     -Wuninitialized
     -pedantic-errors
     -Wall
@@ -52,6 +54,9 @@ else()
     -Wno-unused-parameter
     -Wshadow
   )
+  if (USE_WERROR)
+    list(APPEND OLIVE_COMPILE_OPTIONS "-Werror")
+  endif()
 endif()
 
 set(OLIVE_DEFINITIONS -DQT_DEPRECATED_WARNINGS)
@@ -136,6 +141,13 @@ list(APPEND OLIVE_LIBRARIES
 
 # Link PortAudio
 find_package(PortAudio REQUIRED)
+set(CMAKE_REQUIRED_INCLUDES ${PORTAUDIO_INCLUDE_DIRS})
+include(CheckIncludeFileCXX)
+check_include_file_cxx( "pa_jack.h" PA_HAS_JACK)
+if (PA_HAS_JACK)
+  list(APPEND OLIVE_DEFINITIONS PA_HAS_JACK)
+endif()
+
 list(APPEND OLIVE_INCLUDE_DIRS ${PORTAUDIO_INCLUDE_DIRS})
 list(APPEND OLIVE_LIBRARIES ${PORTAUDIO_LIBRARIES})
 

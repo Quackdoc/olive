@@ -457,47 +457,167 @@ void TrackListRippleToolCommand::ripple(bool redo)
 //
 // TimelineRippleDeleteGapsAtRegionsCommand
 //
-void TimelineRippleDeleteGapsAtRegionsCommand::redo()
+void TimelineRippleDeleteGapsAtRegionsCommand::prepare()
 {
-  if (commands_.isEmpty()) {
-    foreach (const TimeRange& range, regions_) {
-      rational max_ripple_length = range.length();
+  int max_gaps = 0;
+  QHash<Track*, QVector<RemovalRequest> > requested_gaps;
 
-      QVector<Block*> blocks_around_range;
+  // Convert regions to gaps
+  for (const QPair<Track*, TimeRange> &region : qAsConst(regions_)) {
+    Track *track = region.first;
+    const TimeRange &range = region.second;
 
-      foreach (Track* track, timeline_->GetTracks()) {
-        // Get the block from every other track that is either at or just before our block's in point
-        Block* block_at_time = track->NearestBlockBeforeOrAt(range.in());
+    GapBlock *gap = dynamic_cast<GapBlock*>(track->NearestBlockBeforeOrAt(range.in()));
 
-        if (block_at_time) {
-          if (dynamic_cast<GapBlock*>(block_at_time)) {
-            max_ripple_length = qMin(block_at_time->length(), max_ripple_length);
-          } else {
-            max_ripple_length = 0;
-            break;
-          }
+    if (gap) {
+      QVector<RemovalRequest> &gaps_on_track = requested_gaps[track];
 
-          blocks_around_range.append(block_at_time);
+      RemovalRequest this_req = {gap, range};
+
+      // Insertion sort
+      bool inserted = false;
+      for (int i=0; i<gaps_on_track.size(); i++) {
+        if (gaps_on_track.at(i).range.in() < range.in()) {
+          gaps_on_track.insert(i, this_req);
+          inserted = true;
+          break;
         }
       }
-
-      if (max_ripple_length > 0) {
-        foreach (Block* resize, blocks_around_range) {
-          if (resize->length() == max_ripple_length) {
-            // Remove block entirely
-            commands_.append(new TrackRippleRemoveBlockCommand(resize->track(), resize));
-          } else {
-            // Resize block
-            commands_.append(new BlockResizeCommand(resize, resize->length() - max_ripple_length));
-          }
-        }
+      if (!inserted) {
+        gaps_on_track.append(this_req);
       }
+
+      max_gaps = qMax(max_gaps, gaps_on_track.size());
+    } else {
+      qWarning() << "Failed to find corresponding gap to region";
     }
   }
 
-  foreach (UndoCommand* c, commands_) {
-    c->redo_now();
+  // For each gap on each track, find a corresponding gap on every other track (which may include
+  // a requested gap) to ripple in order to keep everything synchronized
+  QHash<GapBlock*, rational> gap_lengths;
+  for (int gap_index=0; gap_index<max_gaps; gap_index++) {
+    rational earliest_point = RATIONAL_MAX;
+    rational ripple_length = RATIONAL_MAX;
+    rational latest_point = RATIONAL_MIN;
+
+    foreach (const QVector<RemovalRequest> &gaps_on_track, requested_gaps) {
+      if (gap_index < gaps_on_track.size()) {
+        const RemovalRequest &gap = gaps_on_track.at(gap_index);
+        earliest_point = qMin(earliest_point, gap.range.in());
+        ripple_length = qMin(ripple_length, gap.range.length());
+        latest_point = qMax(latest_point, gap.range.out());
+      }
+    }
+
+    // Determine which gaps will be involved in this operation
+    QVector<GapBlock*> gaps;
+
+    bool all_tracks_unlocked = true;
+
+    foreach (Track* track, timeline_->GetTracks()) {
+      if (track->IsLocked()) {
+        all_tracks_unlocked = false;
+        continue;
+      }
+
+      const QVector<RemovalRequest> &requested_gaps_on_track = requested_gaps.value(track);
+      GapBlock *gap = nullptr;
+      if (gap_index < requested_gaps_on_track.size()) {
+        // A requested gap was at this index, use it
+        gap = requested_gaps_on_track.at(gap_index).gap;
+      } else {
+        // No requested gap was at this index, find one
+        Block *block = track->NearestBlockAfterOrAt(earliest_point);
+
+        if (block) {
+          // Found a block, test if it's a gap
+          gap = dynamic_cast<GapBlock*>(block);
+
+          if (!gap) {
+            if (block->in() == earliest_point) {
+              if (block->next()) {
+                gap = dynamic_cast<GapBlock*>(block->next());
+
+                if (!gap) {
+                  ripple_length = 0;
+                }
+              }
+            } else {
+              gap = dynamic_cast<GapBlock*>(block->previous());
+
+              if (!gap) {
+                ripple_length = 0;
+              }
+            }
+          }
+        } else {
+          // Assume track finishes here and track won't be affected by this operation
+        }
+      }
+
+      if (gap) {
+        gaps.append(gap);
+
+        if (!gap_lengths.contains(gap)) {
+          gap_lengths.insert(gap, gap->length());
+        }
+
+        ripple_length = qMin(ripple_length, gap_lengths.value(gap));
+      }
+
+      if (ripple_length == 0) {
+        break;
+      }
+    }
+
+    if (ripple_length > 0) {
+      foreach (GapBlock *gap, gaps) {
+        if (all_tracks_unlocked) {
+          commands_.append(new NodeBeginOperationCommand(gap->track()));
+        }
+
+        if (gap_lengths.value(gap) == ripple_length) {
+          commands_.append(new TrackRippleRemoveBlockCommand(gap->track(), gap));
+        } else {
+          gap_lengths[gap] -= ripple_length;
+          commands_.append(new BlockResizeCommand(gap, gap_lengths.value(gap)));
+        }
+
+        if (all_tracks_unlocked) {
+          commands_.append(new NodeEndOperationCommand(gap->track()));
+        }
+      }
+
+      if (all_tracks_unlocked) {
+        commands_.append(new TimelineShiftCacheCommand(timeline_, latest_point, latest_point - ripple_length));
+      }
+    }
   }
+}
+
+void TimelineRippleDeleteGapsAtRegionsCommand::redo()
+{
+  for (auto it=commands_.cbegin(); it!=commands_.cend(); it++) {
+    (*it)->redo_now();
+  }
+}
+
+void TimelineRippleDeleteGapsAtRegionsCommand::undo()
+{
+  for (auto it=commands_.crbegin(); it!=commands_.crend(); it++) {
+    (*it)->undo_now();
+  }
+}
+
+void TimelineShiftCacheCommand::redo()
+{
+  timeline_->ShiftCache(from_, to_);
+}
+
+void TimelineShiftCacheCommand::undo()
+{
+  timeline_->ShiftCache(to_, from_);
 }
 
 }
