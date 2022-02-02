@@ -28,6 +28,7 @@ extern "C" {
 
 #include "common/ffmpegutils.h"
 #include "common/timecodefunctions.h"
+#include "dialog/export/codec/encoderoptions.h"
 
 namespace olive {
 
@@ -636,6 +637,32 @@ bool FFmpegEncoder::InitializeStream(AVMediaType type, AVStream** stream_ptr, AV
       if (params().video_buffer_size() > 0) {
         codec_ctx->rc_buffer_size = static_cast<int>(params().video_buffer_size());
       }
+    }
+
+
+  if (codec == ExportCodec::kCodecH264 || codec == ExportCodec::kCodecH264rgb) {
+  //  custom setting preset
+    H264PresetSection preset;
+    const char *ccpreset = preset.GetEncPreset();
+    //std::cout << "ffmpeg Preset is " << ccpreset << std::endl;
+    av_opt_set(codec_ctx, "preset", ccpreset, AV_OPT_SEARCH_CHILDREN);
+  }
+
+
+  if (codec == ExportCodec::kCodecDNxHD) {
+        // FFmpeg needs the profile to be set manually, Hardcoding will need to be before ready for merge.
+        // dnxhr can accomdate 4k -> 8k, dnxhd is for 1080p and 720p resolutions,
+        // however with mov 1080p works too as ffmpeg does not hold dnxhd to spec when using mov.
+        // profile arguments are dnxhr_444, dnxhr_hqx, dnxhr_hq, dnxhr_sq, dnxhr_lb, dnxhd.
+        // more information about the differences see here 
+        // https://avid.secure.force.com/pkb/articles/en_US/white_paper/DNxHR-Codec-Bandwidth-Specifications
+        // av_opt_set(codec_ctx, "profile", "dnxhr_lb", AV_OPT_SEARCH_CHILDREN);
+        // It's possible that MXF issues are being caused by "r_frame_rate" vs "avg_frame_rate"
+  
+        DNXHDProfileSection profile;
+        const char *ccprofile = profile.GetEncProfile();
+        //std::cout << "ffmpeg Preset is " << preset.GetEncPreset() << std::endl;
+        av_opt_set(codec_ctx, "profile", ccprofile, AV_OPT_SEARCH_CHILDREN);
     }
 
   } else if (type == AVMEDIA_TYPE_AUDIO) {
